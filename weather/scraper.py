@@ -1,10 +1,13 @@
 import datetime
 import requests
 import bs4
-import numpy as np
 import pandas as pd
+import re
+import pickle
+
 
 class Scraper:
+    # Class for scraping data from weatheronline.co.uk for further analysis
     def __init__(self):
         # number for 1st of Jan 2010
         self.__begin_number = 1262347200
@@ -74,6 +77,8 @@ class Scraper:
                            'Wick (36 m)', 'Wittering (84 m)', 'Woodford (88 m)',
                            'Yeovil (20 m)']
 
+        self.__search_float = re.compile(r'\d*\.?\d+')
+
     def __get_link(self, date):
         """
         Generate number appropriate for that date by taking starting point (1-1-2010)
@@ -114,18 +119,43 @@ class Scraper:
         end_date = datetime.datetime.strptime(end, '%d-%m-%Y').date()
         # Create empty dictionary for storage
         storage = dict()
+
         # Calculate delta and generate a list from start to end date
         delta = (end_date - start_date).days + 1
         for date in (start_date + datetime.timedelta(i) for i in range(delta)):
+            # Get data for a single day
             stations, temperatures = self.__scrap_day(date)
+            # Change to dictionary for faster access
             results = dict(zip(stations, temperatures))
-            for key in self.__stations:
-                print(self.__stations[key])
 
+            # Because the list of stations from web could be incomplete, we must iterate through the whole list
+            # then the result is added or specified as None if it doesn't exist
+            for key in self.__stations:
+                if key not in results:
+                    if key not in storage:
+                        storage[key] = [None]
+                    else:
+                        storage[key].append(None)
+                else:
+                    value = self.__search_float.search(results[key]).group(0)
+                    if key not in storage:
+                        storage[key] = [value]
+                    else:
+                        storage[key].append(value)
+
+        # Dates as row names
         dates = pd.date_range(start_date, periods=delta)
+        # Create data frame
+        df = pd.DataFrame(storage, index=dates)
+        return df
 
 
 if __name__ == '__main__':
-    s = Scraper()
-    #s.scrap_period('20-12-2010', '2-1-2011')
-    s.scrap_period('2-1-2011', '2-1-2011')
+    # s = Scraper()
+    # df = s.scrap_period('2-1-2011', '2-1-2011')
+    # with open('data.pickle', 'wb') as f:
+    #     pickle.dump(df, f, pickle.HIGHEST_PROTOCOL)
+    with open('data.pickle', 'rb') as f:
+        df = pickle.load(f)
+
+    print(df)
