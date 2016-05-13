@@ -2,6 +2,7 @@ import datetime
 import requests
 import bs4
 import pandas as pd
+import numpy as np
 import re
 import pickle
 
@@ -123,6 +124,7 @@ class Scraper:
         # Calculate delta and generate a list from start to end date
         delta = (end_date - start_date).days + 1
         for date in (start_date + datetime.timedelta(i) for i in range(delta)):
+            print(date)
             # Get data for a single day
             stations, temperatures = self.__scrap_day(date)
             # Change to dictionary for faster access
@@ -133,9 +135,9 @@ class Scraper:
             for key in self.__stations:
                 if key not in results:
                     if key not in storage:
-                        storage[key] = [None]
+                        storage[key] = [np.nan]
                     else:
-                        storage[key].append(None)
+                        storage[key].append(np.nan)
                 else:
                     value = self.__search_float.search(results[key]).group(0)
                     if key not in storage:
@@ -152,10 +154,11 @@ class Scraper:
 
 if __name__ == '__main__':
     # s = Scraper()
-    # df = s.scrap_period('2-1-2011', '2-1-2011')
+    # df = s.scrap_period('1-1-2010', '1-1-2011')
     # with open('data.pickle', 'wb') as f:
     #     pickle.dump(df, f, pickle.HIGHEST_PROTOCOL)
     with open('data.pickle', 'rb') as f:
         df = pickle.load(f)
 
-    print(df)
+    df2 = df.astype(float).interpolate()
+    df2['Aberdaron (94 m)'].plot()
